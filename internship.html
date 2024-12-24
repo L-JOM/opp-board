@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opportunity Board with Filter</title>
+    <style>
+        /* Styles as provided previously */
+        body {
+            margin: 0;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 20px;
+            font-weight: 400;
+            color: #3b3b3b;
+            -webkit-font-smoothing: antialiased;
+            font-smoothing: antialiased;
+            background: #00305b;
+            border-radius: 15px;
+        }
+
+        @media screen and (max-width: 580px) {
+            body {
+                font-size: 16px;
+                line-height: 22px;
+            }
+        }
+
+        h1 {
+            color: #ffffff;
+            background-color: #00305b;
+            padding: 10px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 0; /* Remove any margin around the header */
+        }
+        
+        .filter-container {
+            margin: 20px;
+            text-align: center;
+        }
+
+        #filterBtn {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #00509e;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #filterBtn:hover {
+            background-color: #003f7f;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow: auto;
+        }
+
+        #filterForm {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+
+        #filterForm label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold; /* Make labels more pronounced */
+        }
+
+        #closeBtn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+
+        #closeBtn:hover {
+            color: red;
+        }
+
+        #table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 80px; /* Space for pagination buttons */
+            position: relative;
+        }
+        
+        #loadingMessage {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: #ffffff;
+        padding: 15px;
+        border-radius: 10px;
+        z-index: 1000;
+    }
+    
+    .hidden {
+        display: none;
+    }
+
+        .table-wrapper {
+            overflow-y: auto;
+            max-height: auto; /* Adjust as needed */
+            margin: 0; /* Ensure no margin */
+            padding: 0; /* Ensure no padding */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 15px;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: left;
+            word-break: break-word; /* Fix table values not showing */
+        }
+
+        th {
+            background-color: #00305b;
+            color: #ffffff;
+            position: sticky;
+            top: 0; /* Stick to the top of the container */
+            z-index: 1; /* Make sure headers are above rows */
+        }
+        
+        th.company-col{
+          width:125px;
+          max-width:125px; 
+          white-space: nowrap;
+        }
+        
+        th.major-col {
+            width: 200px;
+            max-width:200px;
+            white-space: nowrap;
+        }
+        
+        th.positType-col{
+          width:200px;
+          max-width:200px;
+          white-space: nowrap;
+        }
+        
+        th.targYear-col{
+          width:100px;
+          max-width:100px;
+          white-space: normal;
+          word-wrap: break-word;
+          
+        }
+        
+        th.h1b1-col{
+          width:100px;
+          max-width:100px;
+          white-space: nowrap;
+        }
+        
+        th.jobType-col{
+          width:80px;
+          max-width:80px;
+          white-space: nowrap;
+        }
+        
+        th.link-col{
+          width:25px;
+          max-width:25px;
+          white-space: nowrap;
+        }
+        
+        .row:nth-of-type(odd) {
+            background: #e9e9e9;
+        }
+
+        .row:nth-of-type(even) {
+            background: #f6f6f6;
+        }
+
+        .tooltip-container {
+            position: relative;
+        }
+        
+        .tooltip{}
+
+        .tooltip-container .tooltip-top{
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            white-space: normal;
+        }
+        
+        .tooltip-container .tooltip-bottom{
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            white-space: normal;
+        }
+
+        .tooltip-container:hover .tooltip-top {
+            display: block;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width:50%;
+        }
+        
+        .tooltip-container:hover .tooltip-bottom{
+            display: block;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50%;
+        }
+
+        .tooltip-container .cell-content {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #00305b;
+            padding: 10px 0;
+            border-radius: 15px;
+        }
+
+        .pagination button,
+        .pagination select {
+            background-color: #00509e;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+
+        .pagination button:hover {
+            background-color: #003f7f;
+        }
+
+        .pagination button.disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .pagination select {
+            background-color: #003f7f;
+            padding: 5px;
+        }
+
+        .pagination select option {
+            background-color: #00305b;
+            color: #ffffff;
+        }
+
+        .submit-btn {
+            width: 100%; /* Make the submit button as wide as the form */
+            background-color: #00509e;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            background-color: #003f7f;
+        }
+      .form-container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    .form-group .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px; /* Adjust the gap between label and input */
+    }
+    .form-group .options label {
+      display: flex;
+      align-items: center; /* Align label text vertically centered with input */
+      flex-basis: 100%; /* Two inputs per row */
+      margin-bottom: 5px;
+    }
+    .form-group .options label input {
+      margin-right: 10px; /* Adjust spacing between input and label text */
+    }
+    .submit-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .submit-btn:hover {
+      background-color: #357ae8;
+    }
+    .reset-btn {
+      margin-top: 10px;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background-color: #e0e0e0;
+      color: #333;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .reset-btn:hover {
+      background-color: #d0d0d0;
+    }
+    
+    </style>
+</head>
+<body>
+    <h1>Opportunity Board (Internships)</h1>
+    <div class="filter-container">
+        <button id="filterBtn">Filter</button>
+    </div>
+    <div id="overlay" class="overlay">
+        <div id="filterForm" class="filter-form">
+            <button id="closeBtn">&times;</button>
+            <form id="filterform">
+
+      <div class="form-group company_name">
+        <label for="company_name">Company Name (Leave Blank if you want All)</label>
+        <input type="text" id="company_name" name="Company">
+        <button type="button" class="reset-btn" onclick="resetInput('company_name')">Reset</button>
+      </div>
+
+      <div class="form-group major">
+        <label for="major">Majors (Leave Blank if you want All)</label>
+        <div class="options">
+          <label><input type="checkbox" id="major" name="Major" value="Aerospace Engineering"> Aerospace Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Biology"> Biology</label>
+          <label><input type="checkbox" id="major" name="Major" value="Biomedical Engineering"> Biomedical Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Business"> Business</label>
+          <label><input type="checkbox" id="major" name="Major" value="Chemical Engineering"> Chemical Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Chemistry"> Chemistry</label>
+          <label><input type="checkbox" id="major" name="Major" value="Civil Engineering"> Civil Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Computer Engineering"> Computer Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Computer Science"> Computer Science</label>
+          <label><input type="checkbox" id="major" name="Major" value="Electrical Engineering"> Electrical Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Environmental Engineering"> Environmental Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Industrial Engineering"> Industrial Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Mathematics"> Mathematics</label>
+          <label><input type="checkbox" id="major" name="Major" value="Mechanical Engineering"> Mechanical Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Neuroscience"> Neuroscience</label>
+          <label><input type="checkbox" id="major" name="Major" value="Nuclear and Radiological Engineering"> Nuclear and Radiological Engineering</label>
+          <label><input type="checkbox" id="major" name="Major" value="Physics"> Physics</label>
+        </div>
+        <button type="button" class="reset-btn" onclick="resetInput('major')">Reset</button>
+      </div> 
+      <div class="form-group year">
+        <label for="year">Target Year (Leave Blank if you want All)</label>
+        <div class="options">
+          <label><input type="checkbox" id="year" name="Target Year" value="1st Year"> 1st Year</label>
+          <label><input type="checkbox" id="year" name="Target Year" value="2nd Year"> 2nd Year</label>
+          <label><input type="checkbox" id="year" name="Target Year" value="3rd Year"> 3rd Year</label>
+          <label><input type="checkbox" id="year" name="Target Year" value="4th Year"> 4th Year</label>
+          <label><input type="checkbox" id="year" name="Target Year" value="5th Year"> 5th Year</label>
+          <label><input type="checkbox" id="year" name="Target Year" value="Graduate"> Graduate</label>
+        </div>
+        <button type="button" class="reset-btn" onclick="resetInput('year')">Reset</button>
+      </div>
+      
+      <div class="form-group job_type">
+        <label for="job_type"> Job_type (Leave Blank if you want All)</label>
+        <div class="options">
+          <label><input type="checkbox" id="job_type" name="Job Type" value="In-person"> In-Person</label>
+          <label><input type="checkbox" id="job_type" name="Job Type" value="Remote"> Remote </label>
+          <label><input type="checkbox" id="job_type" name="Job Type" value="Mix"> Mix(In-person & Remote)</label>
+        </div>
+        <button type="button" class="reset-btn" onclick="resetInput('job_type')">Reset</button>
+      </div>
+      
+      <div class="form-group H1B1">
+        <label for="job_type"> H1B1 Sponsership (Leave Blank if you want All)</label>
+        <div class="options">
+          <label><input type="checkbox" id="H1B1" name="H1B1" value="Yes"> In-Person</label>
+          <label><input type="checkbox" id="H1B1" name="H1B1" value="No"> Remote </label>
+          <label><input type="checkbox" id="H1B1" name="H1B1" value="On Occasion"> On Occasion</label>
+        </div>
+        <button type="button" class="reset-btn" onclick="resetInput('H1B1')">Reset</button>
+      </div>
+
+      <div class="form-group job_type">
+        <label for="job_type"> Job_type (Leave Blank if you want All)</label>
+        <div class="options">
+          <label><input type="checkbox" id="job_type" name="Job Type" value="In-Person"> In-Person</label>
+          <label><input type="checkbox" id="job_type" name="Job Type" value="Remote"> Remote </label>
+          <label><input type="checkbox" id="job_type" name="Job Type" value="Hybrid">Hybrid</label>
+        </div>
+        <button type="button" class="reset-btn" onclick="resetInput('job_type')">Reset</button>
+      </div>
+
+      <button type="button" class="submit-btn" onclick="submitForm()">Submit</button>
+      <input type="reset" class='reset-btn' value='Reset All'>
+    </form>
+    
+        </div>
+    </div>
+    
+    <!-- Loading message div (initially hidden) -->
+      <div id="loadingMessage" class="hidden"></div>
+    <div id="table-container">
+        <div class="table-wrapper">
+            <table id="data-table">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="pagination" id="pagination">
+        <button id="prevBtn" class="disabled">Prev</button>
+        <select id="pageSelect"></select>
+        <button id="nextBtn" class="disabled">Next</button>
+    </div>
+    <script>
+    document.getElementById('filterBtn').addEventListener('click', function() {
+        document.getElementById('overlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';  // Prevent scrolling of the background
+        removeLoadingMessage()
+    });
+
+    document.getElementById('closeBtn').addEventListener('click', function() {
+        document.getElementById('overlay').style.display = 'none';
+        document.body.style.overflow = 'auto';  // Restore scrolling of the background
+        noDataMessage()
+    });
+
+    async function fetchData(url) {
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            const headers = data[0];
+            const rows = data.slice(1);
+            const formObject = {};
+
+            headers.forEach(header => {
+                if (['Major', 'Position Types', 'Target Year', 'H1B1', 'Job Type'].includes(header)) {
+                    formObject[header] = [];
+                } else {
+                    formObject[header] = '';
+                }
+            });
+
+            return [headers, rows, formObject];
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            return [[], [], {}]; // Return empty arrays in case of an error
+        }
+    }
+    
+    function showLoadingMessage() {
+      const loadingMessage = document.getElementById('loadingMessage');
+      loadingMessage.textContent = 'Retrieving Data...';
+      loadingMessage.classList.remove('hidden');
+    }
+    
+    
+    function removeLoadingMessage() {
+        const loadingMessage = document.getElementById('loadingMessage');
+        loadingMessage.classList.add('hidden');
+    }
+    
+    function noDataMessage(){
+      if(totalPages === 0){
+      const loadingMessage = document.getElementById('loadingMessage');
+      loadingMessage.textContent = 'No Data Applicable :(';
+      loadingMessage.classList.remove('hidden');
+    }}
+
+    function renderTable(headers, rows, page) {
+        const rowsPerPage = 25;
+        currentPage = page;
+        let totalRows = rows.length;
+        totalPages = Math.ceil(totalRows / rowsPerPage);
+
+        const startIndex = (page - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
+        const rowsToDisplay = rows.slice(startIndex, endIndex);
+
+        const table = document.getElementById('data-table');
+        let thead = table.querySelector('thead');
+        let tbody = table.querySelector('tbody');
+        const className = {'Company':'company-col', 'Major':'major-col',
+                        'Target Year':'targYear-col', 'Position Types':'positType-col', 'H1B1':'h1b1-col', 'Job Type':'jobType-col', 
+                        'Link':'link-col'};
+        thead.innerHTML = `
+                <tr class='row'>
+                    ${headers.map((header) => {
+
+                        return `<th class=${className[header]}>${header}</th>`;
+                    }).join('')}
+                </tr>`;
+          
+          tbody.innerHTML = `
+                ${rowsToDisplay.map((row, row_index) => `
+                    <tr class='row'>
+                        ${headers.map((header, index) => {
+                            cellContent = row[index]
+                            let tooltipClass = row_index < (rowsToDisplay.length/2) ? 'tooltip-bottom' : 'tooltip-top';
+                            
+                            if (header === 'Major' || header === 'Position Types' || header === 'Job Type') {
+                                return `
+                                    <td class='tooltip-container'>
+                                        <div class='cell-content' style="max-width:${document.getElementsByClassName(className[header])[0].offsetWidth-10}px;">
+                                          ${cellContent}</div>
+                                        <div class="tooltip ${tooltipClass}">${cellContent}</div>
+                                    </td>`;
+                            } else if (header === 'Link') {
+                                return `<td class='link-col'><a href='${cellContent}' target='_blank'>link</a></td>`;
+                            } else if (header === 'Target Year'){
+                                return `<td style="max-width:${document.getElementsByClassName(className[header])[0].offsetWidth-10}px;">${cellContent}</td>`;
+                                  }else{
+                                return `<td style="max-width:${document.getElementsByClassName(className[header])[0].offsetWidth-10}px;">${cellContent}</td>`;
+                            }
+                        }).join('')}
+                    </tr>
+                `).join('')}
+        `;
+
+        const cellContents = document.querySelectorAll('.cell-content');
+        cellContents.forEach(cellContent => {
+            const parentTd = cellContent.parentElement;
+            if (cellContent.scrollWidth <= cellContent.offsetWidth) {
+                parentTd.querySelector('.tooltip').style.display = 'none';
+            }
+        });
+
+        function updatePagination() {
+            const pageSelect = document.getElementById('pageSelect');
+            pageSelect.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Page ${i}`;
+                pageSelect.appendChild(option);
+            }
+            pageSelect.value = currentPage;
+        }
+
+        function updatePaginationButtons() {
+            document.getElementById('prevBtn').classList.toggle('disabled', currentPage === 1);
+            document.getElementById('nextBtn').classList.toggle('disabled', currentPage === totalPages);
+        }
+        updatePagination();
+        updatePaginationButtons();
+        removeLoadingMessage();
+        
+        if (totalRows == 0){
+          noDataMessage();
+        }
+    }
+
+    function filterData_Internships(headers, formObject) {
+        checker = {};
+        headers.forEach(header => {
+                if (['Major', 'Position Types', 'Target Year', 'H1B1', 'Job Type'].includes(header)) {
+                    checker[header] = [];
+                } else {
+                    checker[header] = '';
+                }});
+        if (JSON.stringify(checker) === JSON.stringify(formObject)){ return full_data;}
+        
+                
+        function include(test, target) {
+            if (target == '') {
+                return true;
+            }else{
+            return test.includes(target);}
+        }
+
+        function has_multiple(test, target) {
+            if (target.length == 0) { return true;}else{
+            const test_values = new Set(test.toString().split(", "));
+            return target.some(major => test_values.has(major));
+        }}
+
+            
+        return full_data.filter(row => include(row[0], formObject['Company'])
+            && has_multiple(row[1], formObject['Major'])
+            && has_multiple(row[3], formObject['Target Year'])
+            && has_multiple(row[4], formObject['H1B1'])
+            && has_multiple(row[5], formObject['Job Type']));
+    }
+
+    function reset(headers, rows) {
+        renderTable(headers, rows, 1);
+    }
+
+    function resetInput(group) {
+        const inputs = document.querySelectorAll(`.${group} input`);
+        inputs.forEach(input => {
+            if (input.type === 'radio' || input.type === 'checkbox') {
+                input.checked = false;
+            } else {
+                input.value = '';
+            }
+        });
+    }
+
+    const sheetName = 'Internship_Full_List';
+    const url = 'https://script.google.com/macros/s/AKfycbxJpTg_ajYbmclk3uqv7N7-wd97N9rvfcatna3x1H3_pwZnIKq-L2A9vDvPwMCFAioo/exec?sheetName=' + sheetName;
+
+    let [headers, data, formObject] = [[], [], {}];
+    let full_data = [];
+    let totalPages = 1;
+    let currentPage = 1;
+
+    async function initialize() {
+        showLoadingMessage();
+        [headers, data, formObject] = await fetchData(url);
+        full_data = data;
+        reset(headers, data);
+        console.log(headers, data[0], formObject);
+    }
+
+    initialize();
+    
+
+    function submitForm() {
+        const form = document.forms['filterform'];
+        const formData = new FormData(form);
+        Object.keys(formObject).forEach(header => {
+            if (header === 'Major' || header === 'Position Types' || header === 'Target Year' || header === 'H1B1' || header === 'Job Type') {
+                formObject[header] = [];
+            } else {
+                formObject[header] = '';
+            }
+        });
+        formData.forEach((value, key) => {
+            if (key === 'Major' || key === 'Position Types' || key === 'Target Year' || key === 'H1B1' || key === 'Job Type') {
+                formObject[key].push(value);
+            } else {
+                formObject[key] = value;
+            }
+        });
+        data = filterData_Internships(headers, formObject);
+        reset(headers, data);
+        document.getElementById('overlay').style.display = 'none';
+        document.body.style.overflow = 'auto';// Close the overlay after submission
+    }
+
+    document.getElementById('prevBtn').addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable(headers, data, currentPage);
+        }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', function() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable(headers, data, currentPage);
+        }
+    });
+
+    document.getElementById('pageSelect').addEventListener('change', function() {
+        currentPage = parseInt(this.value);
+        renderTable(headers, data, currentPage);
+    });
+
+    document.querySelector('.submit-btn').addEventListener('click', submitForm);
+</script>
+
+</body>
+</html>
